@@ -12,7 +12,7 @@ type Task = {
   completed: boolean;
 };
 
-// ★ ユーザーIDをローカルストレージから取得、なければ新規作成する関数
+// ユーザーIDをローカルストレージから取得、なければ新規作成する関数
 const getOrCreateUserId = () => {
   let userId = localStorage.getItem('task_manager_user_id');
   if (!userId) {
@@ -43,7 +43,6 @@ function App() {
   const fetchTasks = async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/tasks`, {
-        // ★ リクエストヘッダーにユーザーIDを付与
         headers: { 'X-User-Id': currentUserId }
       });
       if (!response.ok) throw new Error('Failed to fetch tasks');
@@ -62,7 +61,7 @@ function App() {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'X-User-Id': currentUserId // ★ ヘッダー付与
+          'X-User-Id': currentUserId
         },
         body: JSON.stringify({
           title: newTitle,
@@ -93,7 +92,7 @@ function App() {
         method: 'PATCH',
         headers: { 
           'Content-Type': 'application/json',
-          'X-User-Id': currentUserId // ★ ヘッダー付与
+          'X-User-Id': currentUserId
         },
         body: JSON.stringify({ completed: !currentStatus }),
       });
@@ -120,7 +119,7 @@ function App() {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'X-User-Id': currentUserId // ★ ヘッダー付与
+          'X-User-Id': currentUserId
         },
         body: JSON.stringify({ motivation }),
       });
@@ -157,7 +156,8 @@ function App() {
       <div className="max-w-3xl mx-auto space-y-8">
         
         <header className="text-center space-y-2">
-          <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight">Task Manager</h1>
+          {/* ★ タイトルを「ナニスルくん」に変更 */}
+          <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight">ナニスルくん</h1>
           <p className="text-slate-500">あなたのタスクとモチベーションを管理します</p>
           <p className="text-xs text-slate-400 font-mono mt-2">User ID: {currentUserId.slice(0, 8)}...</p>
         </header>
