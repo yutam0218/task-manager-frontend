@@ -1,7 +1,6 @@
 // src/App.tsx
 import { useState, useEffect } from 'react';
 
-// ★ RenderにデプロイしたあなたのAPIのURL
 const API_BASE_URL = 'https://task-manager-api-951q.onrender.com';
 
 type Task = {
@@ -13,17 +12,29 @@ type Task = {
   completed: boolean;
 };
 
+// ★ ユーザーIDをローカルストレージから取得、なければ新規作成する関数
+const getOrCreateUserId = () => {
+  let userId = localStorage.getItem('task_manager_user_id');
+  if (!userId) {
+    userId = crypto.randomUUID(); // ランダムな一意のIDを生成
+    localStorage.setItem('task_manager_user_id', userId);
+  }
+  return userId;
+};
+
 function App() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [motivation, setMotivation] = useState('');
   const [advice, setAdvice] = useState('');
   const [loadingAdvice, setLoadingAdvice] = useState(false);
 
-  // 新規タスク用のステート
   const [newTitle, setNewTitle] = useState('');
   const [newDeadline, setNewDeadline] = useState('');
   const [newImportance, setNewImportance] = useState(3);
   const [newTimeRequired, setNewTimeRequired] = useState(30);
+
+  // 起動時に取得したユーザーID
+  const currentUserId = getOrCreateUserId();
 
   useEffect(() => {
     fetchTasks();
@@ -31,10 +42,12 @@ function App() {
 
   const fetchTasks = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/tasks`);
+      const response = await fetch(`${API_BASE_URL}/tasks`, {
+        // ★ リクエストヘッダーにユーザーIDを付与
+        headers: { 'X-User-Id': currentUserId }
+      });
       if (!response.ok) throw new Error('Failed to fetch tasks');
       const data = await response.json();
-      // 期限が近い順などにソートするとより実践的です（今回はそのまま表示）
       setTasks(data);
     } catch (error) {
       console.error(error);
@@ -47,7 +60,10 @@ function App() {
     try {
       const response = await fetch(`${API_BASE_URL}/tasks`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-User-Id': currentUserId // ★ ヘッダー付与
+        },
         body: JSON.stringify({
           title: newTitle,
           deadline: newDeadline,
@@ -71,12 +87,14 @@ function App() {
 
   const toggleComplete = async (id: number, currentStatus: boolean) => {
     try {
-      // 楽観的UI更新 (サーバーの応答を待たずに見た目を先に変えて体感速度を上げる)
       setTasks(tasks.map(t => t.id === id ? { ...t, completed: !currentStatus } : t));
 
       const response = await fetch(`${API_BASE_URL}/tasks/${id}/complete`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-User-Id': currentUserId // ★ ヘッダー付与
+        },
         body: JSON.stringify({ completed: !currentStatus }),
       });
       if (!response.ok) throw new Error('Failed to update task');
@@ -84,7 +102,7 @@ function App() {
     } catch (error) {
       console.error(error);
       alert('タスクの更新に失敗しました');
-      fetchTasks(); // 失敗したら元の状態に戻す
+      fetchTasks();
     }
   };
 
@@ -100,7 +118,10 @@ function App() {
     try {
       const response = await fetch(`${API_BASE_URL}/tasks/advice`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-User-Id': currentUserId // ★ ヘッダー付与
+        },
         body: JSON.stringify({ motivation }),
       });
 
@@ -119,7 +140,6 @@ function App() {
     }
   };
 
-  // 重要度に応じたバッジの色を返すヘルパー関数
   const getImportanceColor = (importance: number) => {
     if (importance >= 5) return 'bg-red-100 text-red-700 border-red-200';
     if (importance >= 4) return 'bg-orange-100 text-orange-700 border-orange-200';
@@ -127,7 +147,6 @@ function App() {
     return 'bg-blue-100 text-blue-700 border-blue-200';
   };
 
-  // 日付を見やすくフォーマットするヘルパー関数
   const formatDate = (dateString: string) => {
     const d = new Date(dateString);
     return d.toLocaleString('ja-JP', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -140,6 +159,7 @@ function App() {
         <header className="text-center space-y-2">
           <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight">Task Manager</h1>
           <p className="text-slate-500">あなたのタスクとモチベーションを管理します</p>
+          <p className="text-xs text-slate-400 font-mono mt-2">User ID: {currentUserId.slice(0, 8)}...</p>
         </header>
 
         {/* --- AIアシスタント セクション --- */}
@@ -248,13 +268,11 @@ function App() {
           ) : (
             <div className="space-y-3">
               {tasks.map((task) => (
-                // カード全体のコンテナ。完了時は少し透明にして背景色を下げる
                 <div 
                   key={task.id} 
                   className={`flex items-start md:items-center gap-4 p-4 rounded-2xl border transition-all duration-200 shadow-sm hover:shadow-md
                     ${task.completed ? 'bg-slate-50 border-slate-200 opacity-60' : 'bg-white border-slate-200'}`}
                 >
-                  {/* カスタムチェックボックス */}
                   <div className="pt-1 md:pt-0 shrink-0">
                     <input
                       type="checkbox"
@@ -264,13 +282,11 @@ function App() {
                     />
                   </div>
 
-                  {/* タスク情報 */}
                   <div className="flex-grow min-w-0">
                     <h3 className={`text-lg font-bold truncate transition-colors ${task.completed ? 'text-slate-500 line-through' : 'text-slate-800'}`}>
                       {task.title}
                     </h3>
                     
-                    {/* メタデータのバッジ群 */}
                     <div className="flex flex-wrap gap-2 mt-2">
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
                         📅 {formatDate(task.deadline)}
