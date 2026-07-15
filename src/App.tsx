@@ -57,6 +57,9 @@ function App() {
   const createTask = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      // ★ ここを修正: 入力されたローカル時刻を、タイムゾーン情報を含むISO文字列に変換して送信します
+      const isoDeadline = new Date(newDeadline).toISOString();
+
       const response = await fetch(`${API_BASE_URL}/tasks`, {
         method: 'POST',
         headers: { 
@@ -65,7 +68,7 @@ function App() {
         },
         body: JSON.stringify({
           title: newTitle,
-          deadline: newDeadline,
+          deadline: isoDeadline, // ★ 変換した値を送信
           importance: newImportance,
           time_required: newTimeRequired,
         }),
@@ -231,7 +234,6 @@ function App() {
               </div>
               <div className="flex-1">
                 <label className="block text-sm font-medium text-slate-600 mb-1">時間 (分)</label>
-                {/* ★ ここにあった step="5" を削除しました */}
                 <input
                   type="number"
                   min="1"
