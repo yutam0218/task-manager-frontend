@@ -156,7 +156,6 @@ function App() {
       <div className="max-w-3xl mx-auto space-y-8">
         
         <header className="text-center space-y-2">
-          {/* ★ タイトルを「ナニスルくん」に変更 */}
           <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight">ナニスルくん</h1>
           <p className="text-slate-500">あなたのタスクとモチベーションを管理します</p>
           <p className="text-xs text-slate-400 font-mono mt-2">User ID: {currentUserId.slice(0, 8)}...</p>
@@ -232,10 +231,10 @@ function App() {
               </div>
               <div className="flex-1">
                 <label className="block text-sm font-medium text-slate-600 mb-1">時間 (分)</label>
+                {/* ★ ここにあった step="5" を削除しました */}
                 <input
                   type="number"
                   min="1"
-                  step="5"
                   value={newTimeRequired}
                   onChange={(e) => setNewTimeRequired(Number(e.target.value))}
                   className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
