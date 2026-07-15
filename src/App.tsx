@@ -1,11 +1,9 @@
 // src/App.tsx
 import { useState, useEffect } from 'react';
 
-// ★ 先ほどRenderにデプロイしたあなたのAPIのURLを指定します
-// 末尾にスラッシュ(/)は含めないでください
+// ★ RenderにデプロイしたあなたのAPIのURL
 const API_BASE_URL = 'https://task-manager-api-951q.onrender.com';
 
-// タスクの型定義
 type Task = {
   id: number;
   title: string;
@@ -27,17 +25,16 @@ function App() {
   const [newImportance, setNewImportance] = useState(3);
   const [newTimeRequired, setNewTimeRequired] = useState(30);
 
-  // 初期読み込み時にタスク一覧を取得
   useEffect(() => {
     fetchTasks();
   }, []);
 
-  // タスク一覧を取得する関数 (GET /tasks)
   const fetchTasks = async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/tasks`);
       if (!response.ok) throw new Error('Failed to fetch tasks');
       const data = await response.json();
+      // 期限が近い順などにソートするとより実践的です（今回はそのまま表示）
       setTasks(data);
     } catch (error) {
       console.error(error);
@@ -45,7 +42,6 @@ function App() {
     }
   };
 
-  // タスクを作成する関数 (POST /tasks)
   const createTask = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -62,7 +58,6 @@ function App() {
 
       if (!response.ok) throw new Error('Failed to create task');
       
-      // 作成成功後、入力をクリアして一覧を再取得
       setNewTitle('');
       setNewDeadline('');
       setNewImportance(3);
@@ -74,23 +69,25 @@ function App() {
     }
   };
 
-  // タスクの完了状態を切り替える関数 (PATCH /tasks/:id/complete)
   const toggleComplete = async (id: number, currentStatus: boolean) => {
     try {
+      // 楽観的UI更新 (サーバーの応答を待たずに見た目を先に変えて体感速度を上げる)
+      setTasks(tasks.map(t => t.id === id ? { ...t, completed: !currentStatus } : t));
+
       const response = await fetch(`${API_BASE_URL}/tasks/${id}/complete`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ completed: !currentStatus }),
       });
       if (!response.ok) throw new Error('Failed to update task');
-      fetchTasks(); // 成功したら一覧を再取得
+      fetchTasks();
     } catch (error) {
       console.error(error);
       alert('タスクの更新に失敗しました');
+      fetchTasks(); // 失敗したら元の状態に戻す
     }
   };
 
-  // AIにアドバイスをもらう関数 (POST /tasks/advice)
   const getAdvice = async () => {
     if (!motivation) {
       alert('現在のやる気を入力してください！');
@@ -122,103 +119,177 @@ function App() {
     }
   };
 
+  // 重要度に応じたバッジの色を返すヘルパー関数
+  const getImportanceColor = (importance: number) => {
+    if (importance >= 5) return 'bg-red-100 text-red-700 border-red-200';
+    if (importance >= 4) return 'bg-orange-100 text-orange-700 border-orange-200';
+    if (importance >= 3) return 'bg-yellow-100 text-yellow-700 border-yellow-200';
+    return 'bg-blue-100 text-blue-700 border-blue-200';
+  };
+
+  // 日付を見やすくフォーマットするヘルパー関数
+  const formatDate = (dateString: string) => {
+    const d = new Date(dateString);
+    return d.toLocaleString('ja-JP', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  };
+
   return (
-    <div style={{ maxWidth: '800px', margin: '0 auto', padding: '20px', fontFamily: 'sans-serif' }}>
-      <h1>タスク管理アプリ</h1>
-
-      <section style={{ marginBottom: '40px', padding: '20px', border: '1px solid #ccc', borderRadius: '8px' }}>
-        <h2>📝 新しいタスクを追加</h2>
-        <form onSubmit={createTask} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <input
-            type="text"
-            placeholder="タスク名"
-            value={newTitle}
-            onChange={(e) => setNewTitle(e.target.value)}
-            required
-            style={{ padding: '8px' }}
-          />
-          <input
-            type="datetime-local"
-            value={newDeadline}
-            onChange={(e) => setNewDeadline(e.target.value)}
-            required
-            style={{ padding: '8px' }}
-          />
-          <label>
-            重要度 (1-5):
-            <input
-              type="number"
-              min="1"
-              max="5"
-              value={newImportance}
-              onChange={(e) => setNewImportance(Number(e.target.value))}
-              style={{ marginLeft: '10px', padding: '8px' }}
-            />
-          </label>
-          <label>
-            所要時間 (分):
-            <input
-              type="number"
-              min="1"
-              value={newTimeRequired}
-              onChange={(e) => setNewTimeRequired(Number(e.target.value))}
-              style={{ marginLeft: '10px', padding: '8px' }}
-            />
-          </label>
-          <button type="submit" style={{ padding: '10px', backgroundColor: '#007BFF', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
-            タスクを追加
-          </button>
-        </form>
-      </section>
-
-      <section style={{ marginBottom: '40px' }}>
-        <h2>📋 タスク一覧</h2>
-        {tasks.length === 0 ? (
-          <p>タスクはありません。</p>
-        ) : (
-          <ul style={{ listStyle: 'none', padding: 0 }}>
-            {tasks.map((task) => (
-              <li key={task.id} style={{ padding: '10px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <input
-                  type="checkbox"
-                  checked={task.completed}
-                  onChange={() => toggleComplete(task.id, task.completed)}
-                  style={{ transform: 'scale(1.5)' }}
-                />
-                <span style={{ textDecoration: task.completed ? 'line-through' : 'none', flexGrow: 1 }}>
-                  <strong>{task.title}</strong> - {new Date(task.deadline).toLocaleString()} (重要度: {task.importance}, 所要時間: {task.time_required}分)
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section style={{ padding: '20px', backgroundColor: '#f9f9f9', borderRadius: '8px' }}>
-        <h2>🤖 AIアシスタントに相談</h2>
-        <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
-          <input
-            type="text"
-            placeholder="今の気分や「やる気」を教えてください（例：疲れているので軽い作業がしたい）"
-            value={motivation}
-            onChange={(e) => setMotivation(e.target.value)}
-            style={{ flexGrow: 1, padding: '10px' }}
-          />
-          <button
-            onClick={getAdvice}
-            disabled={loadingAdvice}
-            style={{ padding: '10px 20px', backgroundColor: '#28A745', color: 'white', border: 'none', borderRadius: '4px', cursor: loadingAdvice ? 'not-allowed' : 'pointer' }}
-          >
-            {loadingAdvice ? '考え中...' : '提案してもらう'}
-          </button>
-        </div>
+    <div className="min-h-screen bg-slate-50 text-slate-800 p-4 md:p-8 font-sans">
+      <div className="max-w-3xl mx-auto space-y-8">
         
-        {advice && (
-          <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#e9f7ef', borderLeft: '5px solid #28A745', whiteSpace: 'pre-wrap' }}>
-            {advice}
+        <header className="text-center space-y-2">
+          <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight">Task Manager</h1>
+          <p className="text-slate-500">あなたのタスクとモチベーションを管理します</p>
+        </header>
+
+        {/* --- AIアシスタント セクション --- */}
+        <section className="bg-gradient-to-br from-emerald-50 to-teal-50 p-6 rounded-2xl shadow-sm border border-emerald-100">
+          <h2 className="text-xl font-bold text-emerald-800 flex items-center gap-2 mb-4">
+            <span>🤖</span> AIにタスク順を相談する
+          </h2>
+          <div className="flex flex-col md:flex-row gap-3">
+            <input
+              type="text"
+              placeholder="今の気分は？（例：疲れているのでサクッと終わるものがいい）"
+              value={motivation}
+              onChange={(e) => setMotivation(e.target.value)}
+              className="flex-grow px-4 py-3 rounded-xl border border-emerald-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+            />
+            <button
+              onClick={getAdvice}
+              disabled={loadingAdvice}
+              className="whitespace-nowrap bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-6 py-3 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+            >
+              {loadingAdvice ? '考え中...' : '提案してもらう'}
+            </button>
           </div>
-        )}
-      </section>
+          
+          {advice && (
+            <div className="mt-4 p-5 bg-white/80 backdrop-blur-sm rounded-xl border border-emerald-200 text-emerald-900 leading-relaxed whitespace-pre-wrap shadow-inner">
+              {advice}
+            </div>
+          )}
+        </section>
+
+        {/* --- 新規タスク追加 セクション --- */}
+        <section className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+          <h2 className="text-xl font-bold text-slate-800 mb-5">📝 新しいタスクを追加</h2>
+          <form onSubmit={createTask} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-slate-600 mb-1">タスク名</label>
+              <input
+                type="text"
+                placeholder="例: フロントエンドのUIを改善する"
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                required
+                className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-slate-600 mb-1">期限</label>
+              <input
+                type="datetime-local"
+                value={newDeadline}
+                onChange={(e) => setNewDeadline(e.target.value)}
+                required
+                className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div className="flex gap-4">
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-slate-600 mb-1">重要度 (1-5)</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="5"
+                  value={newImportance}
+                  onChange={(e) => setNewImportance(Number(e.target.value))}
+                  className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-slate-600 mb-1">時間 (分)</label>
+                <input
+                  type="number"
+                  min="1"
+                  step="5"
+                  value={newTimeRequired}
+                  onChange={(e) => setNewTimeRequired(Number(e.target.value))}
+                  className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="md:col-span-2 pt-2">
+              <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition-colors shadow-sm">
+                タスクを登録する
+              </button>
+            </div>
+          </form>
+        </section>
+
+        {/* --- タスク一覧 セクション --- */}
+        <section>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-slate-800">📋 タスク一覧</h2>
+            <span className="bg-slate-200 text-slate-600 px-3 py-1 rounded-full text-sm font-medium">
+              計 {tasks.length} 件
+            </span>
+          </div>
+
+          {tasks.length === 0 ? (
+            <div className="text-center py-12 bg-white rounded-2xl border border-dashed border-slate-300 text-slate-500">
+              <p>現在登録されているタスクはありません。</p>
+              <p className="text-sm mt-1">上のフォームから最初のタスクを追加しましょう！</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {tasks.map((task) => (
+                // カード全体のコンテナ。完了時は少し透明にして背景色を下げる
+                <div 
+                  key={task.id} 
+                  className={`flex items-start md:items-center gap-4 p-4 rounded-2xl border transition-all duration-200 shadow-sm hover:shadow-md
+                    ${task.completed ? 'bg-slate-50 border-slate-200 opacity-60' : 'bg-white border-slate-200'}`}
+                >
+                  {/* カスタムチェックボックス */}
+                  <div className="pt-1 md:pt-0 shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={task.completed}
+                      onChange={() => toggleComplete(task.id, task.completed)}
+                      className="w-6 h-6 rounded-md border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer transition-colors"
+                    />
+                  </div>
+
+                  {/* タスク情報 */}
+                  <div className="flex-grow min-w-0">
+                    <h3 className={`text-lg font-bold truncate transition-colors ${task.completed ? 'text-slate-500 line-through' : 'text-slate-800'}`}>
+                      {task.title}
+                    </h3>
+                    
+                    {/* メタデータのバッジ群 */}
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                        📅 {formatDate(task.deadline)}
+                      </span>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium border ${getImportanceColor(task.importance)}`}>
+                        🔥 重要度 {task.importance}
+                      </span>
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">
+                        ⏱️ {task.time_required}分
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+      </div>
     </div>
   );
 }
